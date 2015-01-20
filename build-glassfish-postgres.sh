@@ -2,13 +2,19 @@
 # Amazon LinuxにGlassFishをインストール
 #########################################################
 
+#########################################################
 # OSの最新化
+#########################################################
 sudo yum -y update
 
+#########################################################
 # JDKのインストール
+#########################################################
 sudo yum -y install java-1.7.0-openjdk-devel
 
+#########################################################
 # GlassFish-v4.1のインストール
+#########################################################
 sudo yum -y install wget
 sudo yum -y install unzip
 cd /tmp
@@ -25,20 +31,23 @@ wget -P /opt/glassfish-4.1-web/glassfish/domains/domain1/lib/ext/ http://central
 cd glassfish-4.1-web/bin/
 ./asadmin start-domain
 ./asadmin change-admin-password
-# ここでGlassFish管理者のパスワードを設定する. 初期パスワードは空.
-# 更に設定したパスワードをpass.txtに書き込んでおき、以降のコマンド実行を楽にする.
+(パスワード入力)
+
+# パスワードファイル作成
 echo AS_ADMIN_PASSWORD=xxx >> pass.txt
 
-./asadmin -W pass.txt enable-secure-admin
-
+#########################################################
 # 自動起動設定
 # 以下のURLを参考(というかほぼ丸コピー)にした
 # http://shinsuke789.hatenablog.jp/entry/20121002/1349134548
 # また自動起動はroot権限で行われるため、80番ポートでリッスン可能になる.
 # リッスンポートはデフォルト8080であり、これを変更するコマンドは現在調査中.
+#########################################################
 sudo touch /etc/init.d/glassfish
 sudo chmod +x /etc/init.d/glassfish
 sudo vi /etc/init.d/glassfish
+
+(ファイル内容を以下の通りにする)
 
 #!/bin/bash
 #
@@ -65,86 +74,60 @@ sh ${GLASSFISH_HOME}/bin/asadmin restart-domain $2
 esac
 exit 0
 
+(ファイル内容ここまで)
 
 sudo chkconfig --add glassfish
 sudo chkconfig glassfish on
 sudo service glassfish restart
 
-
+#########################################################
 # 不要リソース削除
+#########################################################
+./asadmin -W pass.txt enable-secure-admin
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
-# ./asadmin -W pass.txt delete-http-listener http-listener-2
+./asadmin -W pass.txt delete-http-listener http-listener-2
 ./asadmin -W pass.txt delete-threadpool thread-pool-1
 
-# 以下のコマンドはPostgreSQLをインストールしてから発行する
-./asadmin -W pass.txt create-jdbc-connection-pool \
-  --datasourceclassname=org.postgresql.ds.PGConnectionPoolDataSource \
-  --restype=javax.sql.ConnectionPoolDataSource \
-  --steadypoolsize=2 \
-  --maxpoolsize=32 \
-  --poolresize=2 \
-  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
- app-connection-pool
-./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/Sandbox
-./asadmin -W pass.txt delete-jvm-options -Xmx512m
-./asadmin -W pass.txt create-jvm-options -Xmx3600m
-./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
-./asadmin -W pass.txt create-jvm-options "-XX\:MaxPermSize=512m"
-./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=create
-./asadmin -W pass.txt create-jvm-options -Dwicket.configuration=deployment
-sudo service glassfish restart
-
-# ここでwarをデプロイする
-# 
-# war作成はmavenで行う.
-# eclipseのプロジェクトのあるディレクトリで下記コマンドを発行.
-# $ mvn clean package -DskipTests=true
-# これで<project_root>/target/にwarが作られる.
-#
-# デプロイする際、コンテキストルートは / にする
-#
-# ブラウザで以下のURLにアクセスする
-# http://<host>:8080
-# テーブルは起動時に作られているはず
-
-# このままでは再起動のつどテーブルがdrop→createされてしまうので、この設定を外す
-./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=none
-sudo service glassfish restart
-
 #########################################################
-# PostgreSQL 9.3 をAmazon Linuxにインストールする
+# PostgreSQL 9.3 インストール.
+# サービス名
+#   Amazon Linux: postgresql93
+#   CentOS      : postgresql-9.3
+# データディレクトリ
+#   Amazon Linux: /var/lib/pgsql93/data
+#   CentOS      : /var/lib/pgsql/9.3/data
 #########################################################
 sudo rpm -i http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64/pgdg-redhat93-9.3-1.noarch.rpm
 sudo yum -y install postgresql93-server postgresql93-contrib
 
-
-sudo passwd postgres
-# ここでLinuxのpostgresユーザのパスワードを設定
-# ここからはpostgresユーザのpsqlコマンド上で作業
-su - postgres
-initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
-exit
-
 sudo chkconfig postgresql93 on
 sudo service postgresql93 start
-# sudo chkconfig iptables off
 
+# Linuxのpostgresユーザのパスワードを設定しておく.
+sudo passwd postgres
+
+#########################################################
+# DB初期化
+#########################################################
 su - postgres
-psql
-
-# PostgreSQLにアプリ用ユーザを作る.
-create user app createdb password 'xxx' login;
-
-# ここで一旦psqlから抜け、さらにpostgresユーザからも抜ける.
-# 作成したユーザでpsql接続可能にするために、PostgreSQLの設定ファイルを編集する.
-\q
+(パスワード入力)
+initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+# 場合によってはinitdbにPATHが通っていない
 exit
 
+#########################################################
+# PostgreSQLにアプリケーション用ユーザを作成.
+#########################################################
+psql -U postgres -h localhost
+create user app createdb password 'xxx' login;
+\q
 
+#########################################################
 # 全てのDB/ユーザでパスワード認証を経ての接続を可能にする
+#########################################################
 sudo vi /var/lib/pgsql93/data/pg_hba.conf
 
 (ファイルの内容を下記に置換)
@@ -161,16 +144,71 @@ host    all             all             0.0.0.0/0               password
 # IPv6 local connections:
 host    all             all             ::/0                    password
 
+(ファイル内容ここまで)
 
-
+#########################################################
 # PostgreSQLのチューニング
 # 設定内容については下記ページをほぼ鵜呑みに.
 # http://qiita.com/awakia/items/54503f309216c840765e
+#########################################################
 sudo vi /var/lib/pgsql93/data/postgresql.conf
-
 
 # 設定ファイルを書き換えた後はPostgreSQLを再起動する.
 sudo service postgresql93 restart
 
+#########################################################
 # DBを作る
+#########################################################
 createdb -U app -h localhost -E UTF8 app
+
+#########################################################
+# JDBCリソース作成
+#########################################################
+./asadmin -W pass.txt create-jdbc-connection-pool \
+  --datasourceclassname=org.postgresql.ds.PGConnectionPoolDataSource \
+  --restype=javax.sql.ConnectionPoolDataSource \
+  --steadypoolsize=10 \
+  --maxpoolsize=80 \
+  --poolresize=5 \
+  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
+ app-connection-pool
+./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/App
+
+#########################################################
+# JVM設定.
+#########################################################
+./asadmin -W pass.txt delete-jvm-options -Xmx512m
+./asadmin -W pass.txt create-jvm-options -Xms12288m
+./asadmin -W pass.txt create-jvm-options -Xmx12288m
+./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
+./asadmin -W pass.txt create-jvm-options "-XX\:MaxPermSize=512m"
+./asadmin -W pass.txt create-jvm-options -Dwicket.configuration=deployment
+sudo service glassfish restart
+
+
+# 以下、実験中のコマンド.
+
+./asadmin -W pass.txt create-threadpool \
+  --minthreadpoolsize=10 \
+  --maxthreadpoolsize=1000 \
+ app-thread-pool
+
+./asadmin -W pass.txt create-protocol app-protocol
+
+./asadmin -W pass.txt create-network-listener \
+  --address=0.0.0.0 \
+  --listenerport=8383 \
+  --threadpool=app-thread-pool \
+  --protocol=app-http-listener \
+ app-http-listener
+
+./asadmin -W pass.txt create-http-listener \
+  --listeneraddress=0.0.0.0 \
+  --listenerport=8282 \
+  --default-virtual-server=server \
+ app-http-listener
+
+./asadmin -W pass.txt create-http \
+  --default-virtual-server=server
+ app-protocol
+

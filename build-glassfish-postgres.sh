@@ -29,11 +29,14 @@ cd glassfish-4.1-web/bin/
 echo AS_ADMIN_PASSWORD=xxx >> pass.txt
 
 ./asadmin -W pass.txt enable-secure-admin
+
+# 不要リソース削除
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
-
+./asadmin -W pass.txt delete-http-listener http-listener-2
+./asadmin -W pass.txt delete-threadpool thread-pool-1
 
 # 以下のコマンドはPostgreSQLをインストールしてから発行する
 ./asadmin -W pass.txt create-jdbc-connection-pool \
@@ -42,9 +45,9 @@ echo AS_ADMIN_PASSWORD=xxx >> pass.txt
   --steadypoolsize=2 \
   --maxpoolsize=32 \
   --poolresize=2 \
-  --property serverName=localhost:portNumber=5432:databaseName=hee:user=hee:password=xxx \
- hee-connection-pool
-./asadmin -W pass.txt create-jdbc-resource --connectionpoolid hee-connection-pool jdbc/Hee
+  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
+ app-connection-pool
+./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/SandboxJavaee
 ./asadmin -W pass.txt delete-jvm-options -Xmx512m
 ./asadmin -W pass.txt create-jvm-options -Xmx12288m
 ./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
@@ -116,19 +119,24 @@ sudo service glassfish restart
 #########################################################
 sudo rpm -i http://yum.postgresql.org/9.3/redhat/rhel-6-x86_64/pgdg-redhat93-9.3-1.noarch.rpm
 sudo yum -y install postgresql93-server postgresql93-contrib
-sudo service postgresql93 initdb
-sudo chkconfig postgresql93 on
-sudo service postgresql93 status
-sudo service postgresql93 start
-# sudo chkconfig iptables off
+
+
 sudo passwd postgres
 # ここでLinuxのpostgresユーザのパスワードを設定
 # ここからはpostgresユーザのpsqlコマンド上で作業
 su - postgres
+initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+exit
+
+sudo chkconfig postgresql93 on
+sudo service postgresql93 start
+# sudo chkconfig iptables off
+
+su - postgres
 psql
 
 # PostgreSQLにアプリ用ユーザを作る.
-create user hee createdb password 'xxx' login;
+create user app createdb password 'xxx' login;
 
 # ここで一旦psqlから抜け、さらにpostgresユーザからも抜ける.
 # 作成したユーザでpsql接続可能にするために、PostgreSQLの設定ファイルを編集する.
@@ -165,4 +173,4 @@ sudo vi /var/lib/pgsql93/data/postgresql.conf
 sudo service postgresql93 restart
 
 # DBを作る
-createdb -U hee -h localhost -E UTF8 hee
+createdb -U app -h localhost -E UTF8 app

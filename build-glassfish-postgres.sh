@@ -10,6 +10,7 @@ sudo yum -y install java-1.7.0-openjdk-devel
 
 # GlassFish-v4.1のインストール
 sudo yum -y install wget
+sudo yum -y install unzip
 cd /tmp
 wget -P /tmp http://dlc.sun.com.edgesuite.net/glassfish/4.1/release/glassfish-4.1-web.zip
 unzip /tmp/glassfish-4.1-web.zip
@@ -29,51 +30,6 @@ cd glassfish-4.1-web/bin/
 echo AS_ADMIN_PASSWORD=xxx >> pass.txt
 
 ./asadmin -W pass.txt enable-secure-admin
-
-# 不要リソース削除
-./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
-./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
-./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
-./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
-./asadmin -W pass.txt delete-http-listener http-listener-2
-./asadmin -W pass.txt delete-threadpool thread-pool-1
-
-# 以下のコマンドはPostgreSQLをインストールしてから発行する
-./asadmin -W pass.txt create-jdbc-connection-pool \
-  --datasourceclassname=org.postgresql.ds.PGConnectionPoolDataSource \
-  --restype=javax.sql.ConnectionPoolDataSource \
-  --steadypoolsize=2 \
-  --maxpoolsize=32 \
-  --poolresize=2 \
-  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
- app-connection-pool
-./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/SandboxJavaee
-./asadmin -W pass.txt delete-jvm-options -Xmx512m
-./asadmin -W pass.txt create-jvm-options -Xmx12288m
-./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
-./asadmin -W pass.txt create-jvm-options "-XX\:MaxPermSize=512m"
-./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=create
-./asadmin -W pass.txt create-jvm-options -Dwicket.configuration=deployment
-./asadmin -W pass.txt create-jvm-options -DHee_pictureDirectory=/opt/hee/picture
-./asadmin restart-domain
-
-# ここでwarをデプロイする
-# 
-# war作成はmavenで行う.
-# eclipseのプロジェクトのあるディレクトリで下記コマンドを発行.
-# $ mvn clean package -DskipTests=true
-# これで<project_root>/target/にwarが作られる.
-#
-# デプロイする際、コンテキストルートは / にする
-#
-# ブラウザで以下のURLにアクセスする
-# http://<host>:8080
-# テーブルは起動時に作られているはず
-
-# このままでは再起動のつどテーブルがdrop→createされてしまうので、この設定を外す
-./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=none
-
-./asadmin restart-domain
 
 # 自動起動設定
 # 以下のURLを参考(というかほぼ丸コピー)にした
@@ -112,6 +68,50 @@ exit 0
 
 sudo chkconfig --add glassfish
 sudo chkconfig glassfish on
+sudo service glassfish restart
+
+
+# 不要リソース削除
+./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
+./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
+./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
+./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
+# ./asadmin -W pass.txt delete-http-listener http-listener-2
+./asadmin -W pass.txt delete-threadpool thread-pool-1
+
+# 以下のコマンドはPostgreSQLをインストールしてから発行する
+./asadmin -W pass.txt create-jdbc-connection-pool \
+  --datasourceclassname=org.postgresql.ds.PGConnectionPoolDataSource \
+  --restype=javax.sql.ConnectionPoolDataSource \
+  --steadypoolsize=2 \
+  --maxpoolsize=32 \
+  --poolresize=2 \
+  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
+ app-connection-pool
+./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/Sandbox
+./asadmin -W pass.txt delete-jvm-options -Xmx512m
+./asadmin -W pass.txt create-jvm-options -Xmx3600m
+./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
+./asadmin -W pass.txt create-jvm-options "-XX\:MaxPermSize=512m"
+./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=create
+./asadmin -W pass.txt create-jvm-options -Dwicket.configuration=deployment
+sudo service glassfish restart
+
+# ここでwarをデプロイする
+# 
+# war作成はmavenで行う.
+# eclipseのプロジェクトのあるディレクトリで下記コマンドを発行.
+# $ mvn clean package -DskipTests=true
+# これで<project_root>/target/にwarが作られる.
+#
+# デプロイする際、コンテキストルートは / にする
+#
+# ブラウザで以下のURLにアクセスする
+# http://<host>:8080
+# テーブルは起動時に作られているはず
+
+# このままでは再起動のつどテーブルがdrop→createされてしまうので、この設定を外す
+./asadmin -W pass.txt create-jvm-options -Dhibernate.hbm2ddl.auto=none
 sudo service glassfish restart
 
 #########################################################

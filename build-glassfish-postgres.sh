@@ -22,9 +22,9 @@ sudo yum -y install expect # mkpasswdコマンドのために必要
 #########################################################
 # GlassFish-v4.1のインストール
 #########################################################
-cd /tmp
-wget -P /tmp http://dlc.sun.com.edgesuite.net/glassfish/4.1/release/glassfish-4.1-web.zip
-unzip /tmp/glassfish-4.1-web.zip
+cd ~/temp
+wget -P ~/temp http://dlc.sun.com.edgesuite.net/glassfish/4.1/release/glassfish-4.1-web.zip
+unzip ~/temp/glassfish-4.1-web.zip
 sudo mv glassfish4/ /opt/
 cd /opt
 sudo mv glassfish4/ glassfish-4.1-web
@@ -114,12 +114,45 @@ sudo service glassfish restart
 #########################################################
 # 不要リソース削除
 #########################################################
-./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
+# 証明書の正しさをプロンプトで問われるので、yesコマンドを使う.
+yes | ./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
-# ./asadmin -W pass.txt delete-http-listener http-listener-2
+./asadmin -W pass.txt delete-http-listener http-listener-1
+./asadmin -W pass.txt delete-http-listener http-listener-2
 ./asadmin -W pass.txt delete-threadpool thread-pool-1
+./asadmin -W pass.txt delete-threadpool http-thread-pool
+
+#########################################################
+# アプリ用ネットワークリスナー作成
+# 具体的な数値は規模に応じてチューニングが必要.
+#########################################################
+./asadmin -W pass.txt create-threadpool \
+  --maxthreadpoolsize 100 \
+  --minthreadpoolsize 10 \
+  --maxqueuesize 2048 \
+  app-threadpool
+
+./asadmin -W pass.txt create-protocol \
+  --target server \
+  app-listener
+
+./asadmin -W pass.txt create-http \
+  --default-virtual-server server \
+  app-listener
+
+./asadmin -W pass.txt create-network-listener \
+  --listenerport 80 \
+  --threadpool app-threadpool \
+  --protocol app-listener \
+  --target server \
+  app-http-listener
+
+# GlassFishを再起動.
+# もし下記コマンドからいつまでたっても復帰しない場合は
+# Ctrl+Cで止めてから再度コマンドを実行するとうまくいく.
+sudo service glassfish restart
 
 #########################################################
 # PostgreSQL 9.3 インストール.
@@ -141,6 +174,7 @@ sudo passwd postgres
 
 #########################################################
 # DB初期化
+# postgresユーザで初期化しないとエンコーディング指定が生きない.
 #########################################################
 su - postgres
 (パスワード入力)
@@ -204,8 +238,9 @@ createdb -U app -h localhost -E UTF8 app
  app-connection-pool
 ./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/App
 
-#########################################################
-# JVM設定.
+####################################################
+# JVM設定
+# 具体的な数値は規模に応じてチューニングが必要.
 #########################################################
 ./asadmin -W pass.txt delete-jvm-options -Xmx512m
 ./asadmin -W pass.txt create-jvm-options -Xms12288m
@@ -213,32 +248,7 @@ createdb -U app -h localhost -E UTF8 app
 ./asadmin -W pass.txt delete-jvm-options "-XX\:MaxPermSize=192m"
 ./asadmin -W pass.txt create-jvm-options "-XX\:MaxPermSize=512m"
 ./asadmin -W pass.txt create-jvm-options -Dwicket.configuration=deployment
+
+# JVM設定を変えた場合、GlassFishの再起動が必要.
 sudo service glassfish restart
-
-
-# 以下、実験中のコマンド.
-
-./asadmin -W pass.txt create-threadpool \
-  --minthreadpoolsize=10 \
-  --maxthreadpoolsize=1000 \
- app-thread-pool
-
-./asadmin -W pass.txt create-protocol app-protocol
-
-./asadmin -W pass.txt create-network-listener \
-  --address=0.0.0.0 \
-  --listenerport=8383 \
-  --threadpool=app-thread-pool \
-  --protocol=app-http-listener \
- app-http-listener
-
-./asadmin -W pass.txt create-http-listener \
-  --listeneraddress=0.0.0.0 \
-  --listenerport=8282 \
-  --default-virtual-server=server \
- app-http-listener
-
-./asadmin -W pass.txt create-http \
-  --default-virtual-server=server
- app-protocol
 

@@ -20,22 +20,24 @@ sudo yum -y install unzip
 sudo yum -y install expect # mkpasswdコマンドのために必要
 
 #########################################################
-# GlassFish-v4.1のインストール
+# GlassFish-v4.1.1のインストール
 #########################################################
 cd /tmp
-wget -P /tmp http://dlc.sun.com.edgesuite.net/glassfish/4.1/release/glassfish-4.1-web.zip
-unzip /tmp/glassfish-4.1-web.zip
+wget -P /tmp http://download.java.net/glassfish/4.1.1/release/glassfish-4.1.1-web.zip
+unzip /tmp/glassfish-4.1.1-web.zip
+rm /tmp/glassfish-4.1.1-web.zip
 sudo mv glassfish4/ /opt/
 cd /opt
-sudo mv glassfish4/ glassfish-4.1-web
+sudo mv glassfish4/ glassfish-4.1.1-web
 
 # PostgreSQLのJDBCドライバを取得してGlassFish環境下に置く.
-wget -P /opt/glassfish-4.1-web/glassfish/domains/domain1/lib/ext/ http://central.maven.org/maven2/org/postgresql/postgresql/9.3-1102-jdbc41/postgresql-9.3-1102-jdbc41.jar
+# バージョンが最新ではないのだが、これより上のバージョンはJDKが8でないと動かないので・・・
+wget -P /opt/glassfish-4.1.1-web/glassfish/domains/domain1/lib/ext/ http://central.maven.org/maven2/org/postgresql/postgresql/9.4-1203-jdbc41/postgresql-9.4-1203-jdbc41.jar
 
 #########################################################
 # GlassFishの管理者パスワード設定
 #########################################################
-cd glassfish-4.1-web/bin/
+cd glassfish-4.1.1-web/bin/
 ./asadmin start-domain
 
 # パスワード生成
@@ -82,7 +84,7 @@ echo '# processname: glassfish' >> /etc/init.d/glassfish
 echo '#' >> /etc/init.d/glassfish
 echo 'export LANG=ja_JP.utf8' >> /etc/init.d/glassfish
 echo '' >> /etc/init.d/glassfish
-echo 'GLASSFISH_HOME=/opt/glassfish-4.1-web' >> /etc/init.d/glassfish
+echo 'GLASSFISH_HOME=/opt/glassfish-4.1.1-web' >> /etc/init.d/glassfish
 echo '' >> /etc/init.d/glassfish
 echo 'case $1 in' >> /etc/init.d/glassfish
 echo 'start)' >> /etc/init.d/glassfish
@@ -114,9 +116,55 @@ sudo service glassfish restart
 #########################################################
 # 不要リソース削除
 #########################################################
-./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
+# 証明書の正しさをプロンプトで問われるので、yesコマンドを使う.
+yes | ./asadmin -W pass.txt delete-jdbc-resource jdbc/__default
 ./asadmin -W pass.txt delete-jdbc-resource jdbc/__TimerPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool DerbyPool
 ./asadmin -W pass.txt delete-jdbc-connection-pool __TimerPool
-# ./asadmin -W pass.txt delete-http-listener http-listener-2
+./asadmin -W pass.txt delete-http-listener http-listener-1
+./asadmin -W pass.txt delete-http-listener http-listener-2
 ./asadmin -W pass.txt delete-threadpool thread-pool-1
+./asadmin -W pass.txt delete-threadpool http-thread-pool
+
+#########################################################
+# アプリ用ネットワークリスナー作成
+# 具体的な数値は規模に応じてチューニングが必要.
+#########################################################
+./asadmin -W pass.txt create-threadpool \
+  --maxthreadpoolsize 100 \
+  --minthreadpoolsize 10 \
+  --maxqueuesize 2048 \
+  app-threadpool
+
+./asadmin -W pass.txt create-protocol \
+  --target server \
+  app-listener
+
+./asadmin -W pass.txt create-http \
+  --default-virtual-server server \
+  app-listener
+
+./asadmin -W pass.txt create-network-listener \
+  --listenerport 80 \
+  --threadpool app-threadpool \
+  --protocol app-listener \
+  --target server \
+  app-http-listener
+
+# GlassFishを再起動.
+# もし下記コマンドからいつまでたっても復帰しない場合は
+# Ctrl+Cで止めてから再度コマンドを実行するとうまくいく.
+sudo service glassfish restart
+
+#########################################################
+# JDBCリソース作成
+#########################################################
+./asadmin -W pass.txt create-jdbc-connection-pool \
+  --datasourceclassname=org.postgresql.ds.PGConnectionPoolDataSource \
+  --restype=javax.sql.ConnectionPoolDataSource \
+  --steadypoolsize=10 \
+  --maxpoolsize=80 \
+  --poolresize=5 \
+  --property serverName=localhost:portNumber=5432:databaseName=app:user=app:password=xxx \
+ app-connection-pool
+./asadmin -W pass.txt create-jdbc-resource --connectionpoolid app-connection-pool jdbc/App

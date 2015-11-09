@@ -16,13 +16,13 @@ sudo yum -y update
 #########################################################
 # PostgreSQL 9.4 インストール.
 # サービス名
-#   Amazon Linux: ?postgresql93
+#   Amazon Linux: postgresql94
 #   CentOS      : postgresql-9.4
 # インストールディレクトリ
 #   Amazon Linux: ?
 #   CentOS      : /usr/pgsql-9.4
 # データディレクトリ
-#   Amazon Linux: ?/var/lib/pgsql93/data
+#   Amazon Linux: /var/lib/pgsql94/data
 #   CentOS      : /var/lib/pgsql/9.4/data
 #########################################################
 sudo rpm -i http://yum.postgresql.org/9.4/redhat/rhel-6-x86_64/pgdg-centos94-9.4-1.noarch.rpm
@@ -41,7 +41,8 @@ sudo passwd postgres
 #########################################################
 su - postgres
 (パスワード入力)
-initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+# initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+initdb --encoding=UTF-8 --locale=ja_JP.UTF-8 -D /var/lib/pgsql94/data
 # initdbにPATHが通っていない場合がある
 exit
 

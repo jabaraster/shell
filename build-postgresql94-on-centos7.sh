@@ -98,6 +98,7 @@ sudo systemctl restart postgresql-9.4
 # DBを作る
 #########################################################
 createdb -U app -h localhost -E UTF8 app
+(PostgreSQLのappユーザのパスワード入力)
 
 #########################################################
 # 外部からの接続を許可する.
@@ -109,6 +110,7 @@ sudo systemctl stop firewalld
 # 確認
 #########################################################
 psql -U app -h localhost
+(PostgreSQLのappユーザのパスワード入力)
 
 # データベース一覧を表示
 \l

@@ -22,7 +22,7 @@
 #########################################################
 sudo yum -y update
 
-# PostgreSQL 9.3 インストール.
+# PostgreSQL 9.4 インストール.
 # サービス名
 #   CentOS7  : postgresql-9.4
 # インストールディレクトリ
@@ -103,7 +103,7 @@ createdb -U app -h localhost -E UTF8 app
 # 外部からの接続を許可する.
 # ここでは乱暴にfirewalldを停めているが、本来は適切に設定するのが望ましい.
 #########################################################
-systemctl stop firewalld
+sudo systemctl stop firewalld
 
 #########################################################
 # 確認

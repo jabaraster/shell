@@ -16,13 +16,13 @@ sudo yum -y update
 #########################################################
 # PostgreSQL 9.4 インストール.
 # サービス名
-#   Amazon Linux: ?postgresql93
+#   Amazon Linux: postgresql94
 #   CentOS      : postgresql-9.4
 # インストールディレクトリ
 #   Amazon Linux: ?
 #   CentOS      : /usr/pgsql-9.4
 # データディレクトリ
-#   Amazon Linux: ?/var/lib/pgsql93/data
+#   Amazon Linux: /var/lib/pgsql94/data
 #   CentOS      : /var/lib/pgsql/9.4/data
 #########################################################
 sudo rpm -i http://yum.postgresql.org/9.4/redhat/rhel-6-x86_64/pgdg-centos94-9.4-1.noarch.rpm
@@ -30,7 +30,11 @@ sudo rpm -i http://yum.postgresql.org/9.4/redhat/rhel-6-x86_64/pgdg-centos94-9.4
 # sudo rpm -i http://yum.postgresql.org/9.4/redhat/rhel-7-x86_64/pgdg-redhat94-9.4-1.noarch.rpm
 sudo yum -y install postgresql94-server postgresql94-contrib
 
-sudo chkconfig postgresql-9.4 on
+export PG_NAME=postgresql-9.4
+# Amazon Linuxの場合
+# export PG_NAME=postgresql94
+
+sudo chkconfig $PG_NAME on
 
 # Linuxのpostgresユーザのパスワードを設定しておく.
 sudo passwd postgres
@@ -41,14 +45,15 @@ sudo passwd postgres
 #########################################################
 su - postgres
 (パスワード入力)
-initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+# initdb --encoding=UTF-8 --locale=ja_JP.UTF-8
+initdb --encoding=UTF-8 --locale=ja_JP.UTF-8 -D /var/lib/pgsql94/data
 # initdbにPATHが通っていない場合がある
 exit
 
 #########################################################
 # サービス起動
 #########################################################
-sudo service postgresql-9.4 start
+sudo service $PG_NAME start
 
 #########################################################
 # PostgreSQLにアプリケーション用ユーザを作成.
@@ -61,7 +66,7 @@ create user app createdb password 'xxx' login;
 #########################################################
 # 全てのDB/ユーザでパスワード認証を経ての接続を可能にする
 #########################################################
-sudo vi /var/lib/pgsql/9.4/data/pg_hba.conf
+sudo vi /var/lib/pgsql94/data/pg_hba.conf
 
 (ファイルの内容を下記に置換)
 
@@ -84,10 +89,10 @@ host    all             all             ::/0                    password
 # 設定内容については下記ページを参考に.
 # http://qiita.com/awakia/items/54503f309216c840765e
 #########################################################
-sudo vi /var/lib/pgsql/9.4/data/postgresql.conf
+sudo vi /var/lib/pgsql94/data/postgresql.conf
 
 # 設定ファイルを書き換えた後はPostgreSQLを再起動する.
-sudo service postgresql-9.4 restart
+sudo service $PG_NAME restart
 
 #########################################################
 # DBを作る

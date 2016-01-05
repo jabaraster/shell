@@ -50,7 +50,7 @@ exit
 # PostgreSQLにアプリケーション用ユーザを作成.
 #########################################################
 # サービスを起動しておく必要がある
-sudo chkconfig postgresql-9.4 on
+sudo systemctl enable postgresql-9.4
 sudo systemctl start postgresql-9.4
 
 psql -U postgres -h localhost
@@ -105,6 +105,7 @@ createdb -U app -h localhost -E UTF8 app
 # ここでは乱暴にfirewalldを停めているが、本来は適切に設定するのが望ましい.
 #########################################################
 sudo systemctl stop firewalld
+sudo systemctl disable firewalld
 
 #########################################################
 # 確認

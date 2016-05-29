@@ -69,7 +69,6 @@ echo AS_ADMIN_PASSWORD=$AS_ADMIN_PASSWORD >> pass.txt
 # 以下のURLを参考(というかほぼ丸コピー)にした
 # http://shinsuke789.hatenablog.jp/entry/20121002/1349134548
 # また自動起動はroot権限で行われるため、80番ポートでリッスン可能になる.
-# リッスンポートはデフォルト8080であり、これを変更するコマンドは現在調査中.
 #########################################################
 sudo touch /etc/init.d/glassfish
 sudo chown `whoami` /etc/init.d/glassfish

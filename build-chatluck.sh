@@ -61,6 +61,35 @@ SetEnv LD_LIBRARY_PATH /var/www/cgi-bin/chatlk/lib
 sudo service httpd restart
 
 
+# SSL対応にするなら以下を実行
+sudo yum install -y mod_ssl
+sudo vi /etc/httpd/conf.d/ssl.conf
+
+# 以下２行のコメントを外す. ホスト名は適切に変更すること
+
+DocumentRoot "/var/www/html"
+ServerName <ホスト名>:443
+
+# 以下３行を編集
+SSLCertificateFile <サーバ証明書へのパス>
+SSLCertificateKeyFile <秘密鍵へのパス>
+SSLCertificateChainFile <中間証明書へのパス>
+
+# httpリクエストをhttpsにリダイレクトする設定
+sudo vi /etc/httpd/conf/httpd.conf
+
+# 以下を設定ファイルの末尾に追記
+<ifModule mod_rewrite.c>
+      RewriteEngine On
+      RewriteCond %{HTTPS} off
+      RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R,L]
+</ifModule>
+
+
+# 設定ファイルを書き換えたらApacheを再起動
+sudo service httpd restart
+
+
 
 ########################################################
 # ChatLuckのインストールとDB構築
@@ -73,6 +102,7 @@ wget https://www.chatluck.com/download/binary/linuxpg93/chatluckV11R12pg93lRE6.t
 tar xvf chatluckV11R12pg93lRE6.tar.gz
 sudo chown -R apache:apache cgi-bin htdocs
 sudo mv cgi-bin/chatlk cgi-bin/chatlksa /var/www/cgi-bin/.
+sudo mv htdocs/chatres htdocs/chatsares /var/www/html/.
 
 # DB構築
 su - postgres
